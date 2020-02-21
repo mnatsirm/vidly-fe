@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import _ from 'lodash';
 import { getMovies } from '../services/fakeMovieService';
 import { getGenres } from '../services/fakeGenreService';
 import MoviesTable from './moviesTable';
@@ -12,11 +13,12 @@ class Movies extends Component {
         genres: [],
         pageSize: 4,
         currentPage: 1,
-        selectedGenre: ''
+        selectedGenre: '',
+        sortColumn: { path: 'title', order: 'asc' }
     };
 
     componentDidMount() {
-        const genres = [{ name: 'All Movies'}, ...getGenres()];
+        const genres = [{ _id: '', name: 'All Movies'}, ...getGenres()];
         this.setState({ movies: getMovies(), genres });
     }
 
@@ -41,9 +43,22 @@ class Movies extends Component {
         this.setState({ selectedGenre: genre, currentPage: 1 });
     };
 
+    handleSort = path => {
+        const sortColumn = {...this.state.sortColumn};
+        if (sortColumn.path === path) {
+            sortColumn.order = sortColumn.order === 'asc' ? 'desc' : 'asc';
+        }
+        else {
+            sortColumn.path = path;
+            sortColumn.order = 'asc';
+        }
+        
+        this.setState({ sortColumn });
+    };
+
     render() {
         const { length: moviesCount } = this.state.movies;
-        const { pageSize, currentPage, movies: allMovies, selectedGenre } = this.state;
+        const { pageSize, currentPage, movies: allMovies, selectedGenre, sortColumn } = this.state;
         if (moviesCount === 0) {
             return <p>There are no movies in the database.</p>
         }
@@ -51,13 +66,17 @@ class Movies extends Component {
         const filtered = selectedGenre && selectedGenre._id 
             ? allMovies.filter(m => m.genre._id === selectedGenre._id) 
             : allMovies;
-        const movies = paginate(filtered, currentPage, pageSize);
+
+        const sorted = _.orderBy(filtered, [sortColumn.path], [sortColumn.order]);
+        
+        const movies = paginate(sorted, currentPage, pageSize);
+        
         return (
             <div className="row">
                 <div className="col-3"></div>
                     <ListGroup 
                         items={this.state.genres}
-                        selectedItem={this.state.selectedGenre}
+                        selectedItem={selectedGenre}
                         onItemSelect={this.handleGenreSelect}
                     />
                 <div className="col">
@@ -66,6 +85,7 @@ class Movies extends Component {
                         items={movies}
                         onLike={this.handleLike}
                         onDelete={this.handleDelete}
+                        onSort={this.handleSort}
                     />
                     <Pagination 
                         itemsCount={filtered.length} 
